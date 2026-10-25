@@ -8,6 +8,16 @@ afterEach(() => {
 });
 
 describe('config', () => {
+    it('loads the server-side Vercel Blob token', async () => {
+        vi.stubEnv('BLOB_READ_WRITE_TOKEN', 'mock-blob-secret');
+        try {
+            const { config } = await import('./config');
+            expect(config.vercelBlob).toEqual({ token: 'mock-blob-secret' });
+        } finally {
+            vi.unstubAllEnvs();
+        }
+    });
+
     it('bilibilib cookie', async () => {
         process.env.BILIBILI_COOKIE_12 = 'cookie1';
         process.env.BILIBILI_COOKIE_34 = 'cookie2';
