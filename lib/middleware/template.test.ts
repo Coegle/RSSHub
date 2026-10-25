@@ -28,6 +28,21 @@ const createCtx = (query: Record<string, string | undefined>, data: any, extra: 
 };
 
 describe('template middleware', () => {
+    it('preserves explicitly opted-in raw responses without serialization', async () => {
+        const ctx = createCtx({ format: 'json' }, undefined);
+        const response = new Response('<rss>original XML</rss>', { headers: { 'Content-Type': 'application/rss+xml' } });
+        await template(ctx, () => {
+            ctx.set('rawResponse', true);
+            ctx.res = response;
+            return Promise.resolve();
+        });
+        expect(ctx.res).toBe(response);
+        expect(await ctx.res.text()).toBe('<rss>original XML</rss>');
+        expect(ctx.render).not.toHaveBeenCalled();
+        expect(ctx.json).not.toHaveBeenCalled();
+        expect(ctx.body).not.toHaveBeenCalled();
+    });
+
     it('returns debug json when requested', async () => {
         const originalDebug = config.debugInfo;
         config.debugInfo = 'true';

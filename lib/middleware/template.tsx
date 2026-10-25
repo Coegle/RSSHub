@@ -14,6 +14,11 @@ const middleware: MiddlewareHandler = async (ctx, next) => {
     const ttl = (cacheModule.status.available && Math.trunc(config.cache.routeExpire / 60)) || 1;
     await next();
 
+    // Explicit opt-in for routes that forward an already serialized response.
+    if (ctx.get('rawResponse')) {
+        return;
+    }
+
     const apiData = ctx.get('apiData');
     if (apiData) {
         return ctx.json(apiData);
