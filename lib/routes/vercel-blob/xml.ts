@@ -51,7 +51,11 @@ export function buildPrivateBlobUrl(storeId: string | undefined, path: string | 
     }
 }
 
-async function forwardPrivateBlobXml(ctx: Context) {
+function forwardPrivateBlobXml(ctx: Context) {
+    return forwardPrivateBlob(ctx);
+}
+
+export async function forwardPrivateBlob(ctx: Context, image = false) {
     // Opt out of feed serialization without setting cacheable RSSHub Data.
     ctx.set('rawResponse', true);
     ctx.header('Cache-Control', 'private, no-store');
@@ -90,8 +94,16 @@ async function forwardPrivateBlobXml(ctx: Context) {
         }
         // Read fully before responding so body errors/timeouts do not produce a
         // partial successful feed. Do not parse or reserialize the original XML.
+        const contentType = upstream.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase();
+        if (image && !['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(contentType || '')) {
+            await upstream.body?.cancel();
+            return ctx.text('Blob is not a supported image.', 502);
+        }
         const body = await upstream.arrayBuffer();
-        ctx.header('Content-Type', 'application/xml');
+        if (image && (!body.byteLength || body.byteLength > 8 * 1024 * 1024)) {
+            return ctx.text('Image is empty or exceeds 8 MiB.', 502);
+        }
+        ctx.header('Content-Type', image ? contentType! : 'application/xml');
         return ctx.body(body);
     } catch {
         return controller.signal.aborted ? ctx.text('Private feed request timed out.', 504) : ctx.text('Unable to read private feed.', 502);
